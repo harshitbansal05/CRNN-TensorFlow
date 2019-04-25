@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.contrib import rnn
 
 
-class CRNN(Object):
+class CRNN(object):
     def __init__(self, phase, hidden_nums, layers_nums, num_classes):
         super(CRNN, self).__init__()
         if phase == 'train':
@@ -87,8 +87,10 @@ class CRNN(Object):
         return tf.cond(
             pred=is_training,
             true_fn=lambda: tf.nn.dropout(
-                inputdata, keep_prob=keep_prob, noise_shape=noise_shape
-            ),
+                inputdata,
+                keep_prob=keep_prob,
+                noise_shape=noise_shape,
+                ),
             false_fn=lambda: inputdata,
             name=name
         )
@@ -102,7 +104,7 @@ class CRNN(Object):
         
         return tf.squeeze(input=inputdata, axis=axis, name=name)
 
-    def _conv_stage(self, inputdata, out_dims, name, is_bn=True, is_pool=True):
+    def conv_stage(self, inputdata, out_dims, name, is_bn=True, is_pool=True):
         with tf.variable_scope(name_or_scope=name):
             conv = self.conv2d(
                 inputdata=inputdata, out_channel=out_dims,
@@ -110,23 +112,28 @@ class CRNN(Object):
             )
             if is_bn: 
                 conv = self.layerbn(
-                    inputdata=conv, is_training=self._is_training, name='bn'
-                )
+                    inputdata=conv,
+                    is_training=self._is_training, 
+                    name='bn'
+                    )
             conv = self.relu(
-                inputdata=conv, name='relu'
-            )
+                inputdata=conv,
+                name='relu'
+                )
             if is_pool:
                 conv = self.maxpooling(
-                    inputdata=conv, kernel_size=2, stride=2, name='max_pool'
+                    inputdata=conv,
+                    kernel_size=2,
+                    stride=2, name='max_pool'
                 )
         return conv
 
-    def _feature_sequence_extraction(self, inputdata, name):
+    def feature_sequence_extraction(self, inputdata, name):
         with tf.variable_scope(name_or_scope=name):
-            conv1 = self._conv_stage(
+            conv1 = self.conv_stage(
                 inputdata=inputdata, out_dims=64, name='conv1'
             )
-            conv2 = self._conv_stage(
+            conv2 = self.conv_stage(
                 inputdata=conv1, out_dims=128, name='conv2'
             )
             conv3 = self.conv2d(
@@ -182,7 +189,7 @@ class CRNN(Object):
 
         return relu7
 
-    def _map_to_sequence(self, inputdata, name):
+    def map_to_sequence(self, inputdata, name):
         with tf.variable_scope(name_or_scope=name):
             shape = inputdata.get_shape().as_list()
             assert shape[1] == 1
@@ -190,7 +197,7 @@ class CRNN(Object):
 
         return ret
 
-    def _sequence_label(self, inputdata, name):
+    def sequence_label(self, inputdata, name):
         with tf.variable_scope(name_or_scope=name):
             fw_cell_list = [tf.nn.rnn_cell.LSTMCell(nh, forget_bias=1.0) for
                             nh in [self._hidden_nums] * self._layers_nums]
@@ -233,31 +240,37 @@ class CRNN(Object):
         with tf.variable_scope(name_or_scope=name, reuse=reuse):
             inputdata = tf.divide(inputdata, 255.0)   # DOUBT
 
-            cnn_out = self._feature_sequence_extraction(
-                inputdata=inputdata, name='feature_extraction_module'
+            cnn_out = self.feature_sequence_extraction(
+                inputdata=inputdata, 
+                name='feature_extraction_module'
             )
 
-            sequence = self._map_to_sequence(
-                inputdata=cnn_out, name='map_to_sequence_module'
+            sequence = self.map_to_sequence(
+                inputdata=cnn_out, 
+                name='map_to_sequence_module'
             )
 
-            net_out, raw_pred = self._sequence_label(
-                inputdata=sequence, name='sequence_rnn_module'
+            net_out, raw_pred = self.sequence_label(
+                inputdata=sequence, 
+                name='sequence_rnn_module'
             )
 
         return net_out
 
     def compute_loss(self, inputdata, labels, name, reuse):
         inference_ret = self.inference(
-            inputdata=inputdata, name=name, reuse=reuse
+            inputdata=inputdata,
+            name=name, 
+            reuse=reuse
         )
 
         loss = tf.reduce_mean(
             tf.nn.ctc_loss(
-                labels=labels, inputs=inference_ret,
+                labels=labels,
+                inputs=inference_ret,
                 sequence_length=CFG.ARCH.SEQ_LENGTH * np.ones(CFG.TRAIN.BATCH_SIZE)
-            ),
-            name='ctc_loss'
-        )
+                ),
+            name='ctc_loss',
+            )
 
         return inference_ret, loss
