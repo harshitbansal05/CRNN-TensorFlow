@@ -256,21 +256,3 @@ class CRNN(object):
             )
 
         return net_out
-
-    def compute_loss(self, inputdata, labels, name, reuse):
-        inference_ret = self.inference(
-            inputdata=inputdata,
-            name=name, 
-            reuse=reuse
-        )
-
-        loss = tf.reduce_mean(
-            tf.nn.ctc_loss(
-                labels=labels,
-                inputs=inference_ret,
-                sequence_length=CFG.ARCH.SEQ_LENGTH * np.ones(CFG.TRAIN.BATCH_SIZE)
-                ),
-            name='ctc_loss',
-            )
-
-        return inference_ret, loss
